@@ -10,6 +10,17 @@ The workshop code downloads the public Titanic dataset automatically when networ
 
 ## Setup
 
+Create a Conda environment (or virtualenv) and install the lightweight runtime
+dependencies:
+
+```bash
+conda env create -f environment.yaml
+conda activate titanic-workshop
+python -m pip install -r requirements.txt
+```
+
+No third-party Python packages are required beyond the standard library, so the
+installation steps above simply ensure you have a modern interpreter available.
 No external packages are required beyond the Python standard library.
 
 ## Running the workshop

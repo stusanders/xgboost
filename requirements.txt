@@ -1,1 +1,2 @@
 # No external dependencies are required for the offline-friendly workshop harness.
+# A recent Python interpreter (3.10+) is recommended.
