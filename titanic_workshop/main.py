@@ -102,6 +102,23 @@ def run_experiments(
     return results
 
 
+def _save_visualizations(results: list[ModelResult], output_dir: pathlib.Path) -> None:
+    """Persist Altair chart specs as JSON for notebook or Vega usage."""
+
+    for result in results:
+        for title, chart in result.visualizations:
+            safe_name = title.lower().replace(" ", "-")
+            target = pathlib.Path(output_dir) / f"{result.name.lower().replace(' ', '-')}-{safe_name}.json"
+            if hasattr(chart, "to_json"):
+                target.write_text(chart.to_json(), encoding="utf-8")
+            elif hasattr(chart, "to_dict"):
+                import json
+
+                target.write_text(json.dumps(chart.to_dict()), encoding="utf-8")
+            else:
+                target.write_text(str(chart), encoding="utf-8")
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for the workshop CLI."""
     parser = argparse.ArgumentParser(description="Titanic modelling workshop harness")
