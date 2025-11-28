@@ -1,2 +1,2 @@
-# No external dependencies are required for the offline-friendly workshop harness.
-# A recent Python interpreter (3.10+) is recommended.
+# Optional visualization dependency. The workshop falls back to a stub when offline.
+altair>=5.0

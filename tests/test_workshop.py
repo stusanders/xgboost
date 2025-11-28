@@ -16,9 +16,11 @@ class RunExperimentsTest(unittest.TestCase):
         """All models should run end-to-end and produce bounded metrics."""
         with tempfile.TemporaryDirectory() as tmpdir:
             results = run_experiments(
-                ["linear", "xgboost", "nn"],
+                ["tree", "forest", "xgboost"],
                 data_dir=pathlib.Path(tmpdir),
-                epochs=3,
+                max_depth=2,
+                forest_trees=3,
+                visualize=True,
             )
 
         self.assertEqual(len(results), 3)
@@ -28,6 +30,8 @@ class RunExperimentsTest(unittest.TestCase):
                 self.assertLessEqual(result.accuracy, 1.0)
                 self.assertGreaterEqual(result.roc_auc, 0.0)
                 self.assertLessEqual(result.roc_auc, 1.0)
+                # Visualizations should be present when requested
+                self.assertTrue(result.visualizations)
 
 
 if __name__ == "__main__":
