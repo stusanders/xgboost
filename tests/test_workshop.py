@@ -15,19 +15,27 @@ class RunExperimentsTest(unittest.TestCase):
     def test_all_models_execute_and_return_metrics(self) -> None:
         """All models should run end-to-end and produce bounded metrics."""
         with tempfile.TemporaryDirectory() as tmpdir:
+            visualize_dir = pathlib.Path(tmpdir) / "visualizations"
             results = run_experiments(
-                ["linear", "xgboost", "nn"],
+                ["tree", "forest", "xgboost"],
                 data_dir=pathlib.Path(tmpdir),
-                epochs=3,
+                max_depth=2,
+                forest_trees=3,
+                visualize=True,
+                visualize_dir=visualize_dir,
             )
 
-        self.assertEqual(len(results), 3)
-        for result in results:
-            with self.subTest(model=result.name):
-                self.assertGreaterEqual(result.accuracy, 0.0)
-                self.assertLessEqual(result.accuracy, 1.0)
-                self.assertGreaterEqual(result.roc_auc, 0.0)
-                self.assertLessEqual(result.roc_auc, 1.0)
+            self.assertEqual(len(results), 3)
+            for result in results:
+                with self.subTest(model=result.name):
+                    self.assertGreaterEqual(result.accuracy, 0.0)
+                    self.assertLessEqual(result.accuracy, 1.0)
+                    self.assertGreaterEqual(result.roc_auc, 0.0)
+                    self.assertLessEqual(result.roc_auc, 1.0)
+                    # Visualizations should be present when requested
+                    self.assertTrue(result.visualizations)
+            self.assertTrue(visualize_dir.exists())
+            self.assertGreaterEqual(len(list(visualize_dir.glob("*.json"))), len(results))
 
 
 if __name__ == "__main__":

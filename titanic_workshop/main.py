@@ -1,7 +1,8 @@
-"""CLI for training and comparing Titanic survival models offline.
+"""CLI for tree-based Titanic survival models.
 
-This entry point ties together data preparation, model training, and reporting
-so workshop participants can run experiments from the command line.
+This entry point ties together data preparation, model training, visualization,
+and reporting so workshop participants can run decision trees, random forests,
+and an XGBoost-inspired booster from the command line.
 """
 from __future__ import annotations
 
@@ -10,41 +11,41 @@ import pathlib
 from typing import List
 
 from .data import ensure_data, load_dataset, split_features_labels
-from .models import (
-    ModelResult,
-    train_logistic_regression,
-    train_neural_network,
-    train_xgboost_classifier,
-)
-from .preprocess import encode_rows, standardize_features, train_test_split
+from .models import ModelResult, train_decision_tree, train_random_forest, train_xgboost_classifier
+from .preprocess import encode_rows, train_test_split
+from .visualize import save_visualizations
 
-MODEL_CHOICES = ["linear", "xgboost", "nn", "all"]
+MODEL_CHOICES = ["tree", "forest", "xgboost", "all"]
+DEFAULT_VISUALIZE_DIR = pathlib.Path("output/visualizations")
 
 
 def run_experiments(
     models_to_run: List[str],
     *,
     data_dir: pathlib.Path,
-    epochs: int,
-    linear_lr: float = 0.1,
-    linear_epochs: int = 500,
-    xgb_rounds: int = 20,
+    max_depth: int = 3,
+    min_leaf_size: int = 2,
+    forest_trees: int = 5,
+    xgb_rounds: int = 10,
     xgb_lr: float = 0.3,
-    nn_hidden_dim: int = 8,
-    nn_lr: float = 0.05,
+    visualize: bool = False,
+    visualize_dir: pathlib.Path | None = DEFAULT_VISUALIZE_DIR,
 ) -> List[ModelResult]:
     """Execute the requested models and collect their metrics.
 
     Args:
         models_to_run: Subset of model identifiers to train.
         data_dir: Directory where the Titanic dataset resides.
-        epochs: Number of epochs to use when training the neural network.
-        linear_lr: Learning rate used by logistic regression.
-        linear_epochs: Epoch count for logistic regression gradient descent.
+        max_depth: Maximum depth for individual trees.
+        min_leaf_size: Minimum sample size before creating a leaf.
+        forest_trees: Number of trees to include in the random forest.
         xgb_rounds: Number of boosting rounds for the stump ensemble.
         xgb_lr: Learning rate applied to each stump weight.
-        nn_hidden_dim: Hidden dimension for the neural network.
-        nn_lr: Learning rate for neural network weight updates.
+        visualize: Whether to persist Altair chart specs alongside metrics.
+        visualize_dir: Directory for visualization JSON output. Defaults to
+            ``output/visualizations``; if explicitly set to ``None`` the
+            location falls back to a ``visualizations`` subfolder alongside the
+            data directory.
 
     Returns:
         List of ModelResult objects ordered by execution.
@@ -52,20 +53,35 @@ def run_experiments(
     data_path = ensure_data(data_dir)
     df = load_dataset(data_path)
     X_raw, y = split_features_labels(df)
-    X_encoded, _ = encode_rows(X_raw)
-    X_standardized, means, stds = standardize_features(X_encoded)
-    X_train, X_test, y_train, y_test = train_test_split(X_standardized, y)
+    X_encoded, headers = encode_rows(X_raw)
+    X_train, X_test, y_train, y_test = train_test_split(X_encoded, y)
+
+    output_dir = visualize_dir or pathlib.Path(data_dir) / "visualizations"
 
     results = []
-    if "linear" in models_to_run:
+    if "tree" in models_to_run:
         results.append(
-            train_logistic_regression(
+            train_decision_tree(
                 X_train,
                 y_train,
                 X_test,
                 y_test,
-                lr=linear_lr,
-                epochs=linear_epochs,
+                max_depth=max_depth,
+                min_size=min_leaf_size,
+                feature_names=headers,
+            )
+        )
+    if "forest" in models_to_run:
+        results.append(
+            train_random_forest(
+                X_train,
+                y_train,
+                X_test,
+                y_test,
+                n_trees=forest_trees,
+                max_depth=max_depth,
+                min_size=min_leaf_size,
+                feature_names=headers,
             )
         )
     if "xgboost" in models_to_run:
@@ -77,20 +93,12 @@ def run_experiments(
                 y_test,
                 rounds=xgb_rounds,
                 learning_rate=xgb_lr,
+                feature_names=headers,
             )
         )
-    if "nn" in models_to_run:
-        results.append(
-            train_neural_network(
-                X_train,
-                y_train,
-                X_test,
-                y_test,
-                hidden_dim=nn_hidden_dim,
-                epochs=epochs,
-                lr=nn_lr,
-            )
-        )
+
+    if visualize:
+        save_visualizations(results, pathlib.Path(output_dir))
     return results
 
 
@@ -115,27 +123,27 @@ def parse_args() -> argparse.Namespace:
         help="Directory where the Titanic CSV is stored or will be downloaded.",
     )
     parser.add_argument(
-        "--epochs",
+        "--max-depth",
         type=int,
-        default=50,
-        help="Epochs for the neural network (ignored for other models).",
+        default=3,
+        help="Maximum depth for individual trees.",
     )
     parser.add_argument(
-        "--linear-lr",
-        type=float,
-        default=0.1,
-        help="Learning rate for logistic regression.",
+        "--min-leaf",
+        type=int,
+        default=2,
+        help="Minimum records required to form a leaf node.",
     )
     parser.add_argument(
-        "--linear-epochs",
+        "--forest-trees",
         type=int,
-        default=500,
-        help="Epochs for logistic regression gradient descent.",
+        default=5,
+        help="Number of trees to include in the random forest.",
     )
     parser.add_argument(
         "--xgboost-rounds",
         type=int,
-        default=20,
+        default=10,
         help="Number of boosting rounds for the stump-based ensemble.",
     )
     parser.add_argument(
@@ -145,16 +153,15 @@ def parse_args() -> argparse.Namespace:
         help="Learning rate for each boosting step.",
     )
     parser.add_argument(
-        "--nn-hidden",
-        type=int,
-        default=8,
-        help="Hidden layer width for the neural network.",
+        "--visualize",
+        action="store_true",
+        help="Save Altair chart specs demonstrating tree behaviour.",
     )
     parser.add_argument(
-        "--nn-lr",
-        type=float,
-        default=0.05,
-        help="Learning rate for the neural network.",
+        "--visualize-dir",
+        type=pathlib.Path,
+        default=DEFAULT_VISUALIZE_DIR,
+        help="Destination directory for visualization JSON (defaults to output/visualizations).",
     )
     return parser.parse_args()
 
@@ -176,7 +183,7 @@ def _interactive_config(args: argparse.Namespace) -> tuple[list[str], dict]:
     """Interactively gather model choices and hyperparameters."""
 
     model_input = input(
-        "Models to run (linear,xgboost,nn,all) [all]: "
+        "Models to run (tree,forest,xgboost,all) [all]: "
     ).strip()
     if not model_input or model_input.lower() == "all":
         models = MODEL_CHOICES[:-1]
@@ -187,13 +194,13 @@ def _interactive_config(args: argparse.Namespace) -> tuple[list[str], dict]:
             models = MODEL_CHOICES[:-1]
 
     config = {
-        "linear_lr": _prompt_value("Logistic regression learning rate", float, args.linear_lr),
-        "linear_epochs": _prompt_value("Logistic regression epochs", int, args.linear_epochs),
+        "max_depth": _prompt_value("Tree max depth", int, args.max_depth),
+        "min_leaf_size": _prompt_value("Leaf minimum size", int, args.min_leaf),
+        "forest_trees": _prompt_value("Random forest trees", int, args.forest_trees),
         "xgb_rounds": _prompt_value("XGBoost rounds", int, args.xgboost_rounds),
         "xgb_lr": _prompt_value("XGBoost learning rate", float, args.xgboost_lr),
-        "nn_hidden_dim": _prompt_value("Neural net hidden width", int, args.nn_hidden),
-        "epochs": _prompt_value("Neural net epochs", int, args.epochs),
-        "nn_lr": _prompt_value("Neural net learning rate", float, args.nn_lr),
+        "visualize": args.visualize,
+        "visualize_dir": args.visualize_dir,
     }
     return models, config
 
@@ -206,13 +213,13 @@ def main() -> None:
     else:
         models = MODEL_CHOICES[:-1] if args.model == "all" else [args.model]
         hyperparams = {
-            "linear_lr": args.linear_lr,
-            "linear_epochs": args.linear_epochs,
+            "max_depth": args.max_depth,
+            "min_leaf_size": args.min_leaf,
+            "forest_trees": args.forest_trees,
             "xgb_rounds": args.xgboost_rounds,
             "xgb_lr": args.xgboost_lr,
-            "nn_hidden_dim": args.nn_hidden,
-            "epochs": args.epochs,
-            "nn_lr": args.nn_lr,
+            "visualize": args.visualize,
+            "visualize_dir": args.visualize_dir,
         }
 
     results = run_experiments(models, data_dir=args.data_dir, **hyperparams)
