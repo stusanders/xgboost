@@ -21,6 +21,7 @@ python -m pip install -r requirements.txt
 
 No third-party Python packages are required beyond the standard library, so the
 installation steps above simply ensure you have a modern interpreter available.
+No external packages are required beyond the Python standard library.
 
 ## Running the workshop
 
@@ -30,30 +31,12 @@ Run all three models and print their metrics:
 python -m titanic_workshop.main --model all
 ```
 
-For an interactive walkthrough that prompts you to pick models and tweak
-hyperparameters (learning rates, epochs, hidden layer width, and boosting rounds)
-from the command line, add `--interactive`:
-
-```bash
-python -m titanic_workshop.main --interactive
-```
-
 You can also run models individually:
 
 ```bash
 python -m titanic_workshop.main --model linear
 python -m titanic_workshop.main --model xgboost
 python -m titanic_workshop.main --model nn --epochs 40
-```
-
-Or pass specific hyperparameters non-interactively:
-
-```bash
-python -m titanic_workshop.main \
-  --model all \
-  --linear-lr 0.05 --linear-epochs 800 \
-  --xgboost-rounds 40 --xgboost-lr 0.2 \
-  --nn-hidden 16 --nn-lr 0.03 --epochs 120
 ```
 
 The script downloads the dataset to `input/titanic.csv` if it is not already present. Use `--data-dir` to change the location.
