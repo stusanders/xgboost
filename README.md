@@ -21,6 +21,7 @@ python -m pip install -r requirements.txt
 
 No third-party Python packages are required beyond the standard library, so the
 installation steps above simply ensure you have a modern interpreter available.
+No external packages are required beyond the Python standard library.
 
 ## Running the workshop
 
