@@ -9,7 +9,10 @@ from __future__ import annotations
 import json
 import pathlib
 from dataclasses import dataclass
-from typing import Any, Iterable, List
+from typing import TYPE_CHECKING, Any, Iterable, List
+
+if TYPE_CHECKING:  # pragma: no cover - type hint convenience
+    from .models import ModelResult
 
 try:  # pragma: no cover - exercised indirectly
     import altair as alt  # type: ignore
@@ -126,10 +129,57 @@ def xgboost_additive_chart(history: List[dict[str, float]]):
     )
 
 
-def save_visualizations(results: list, output_dir: pathlib.Path) -> None:
+def metrics_overview_chart(results: list["ModelResult"]):
+    """Compare core evaluation metrics across trained models."""
+
+    records: list[dict[str, Any]] = []
+    for result in results:
+        hyperparams = ", ".join(f"{k}={v}" for k, v in sorted(result.hyperparameters.items()))
+        for metric, value in result.metric_mapping().items():
+            records.append(
+                {
+                    "model": result.name,
+                    "metric": metric,
+                    "value": value,
+                    "hyperparameters": hyperparams or "(defaults)",
+                }
+            )
+
+    return (
+        alt.Chart(records)
+        .mark_bar()
+        .encode(
+            x="metric:N",
+            y="value:Q",
+            color="model:N",
+            column="model:N",
+            tooltip=["model", "metric", "value:Q", "hyperparameters"],
+        )
+        .properties(title="Evaluation metrics across hyperparameter choices")
+    )
+
+
+def save_visualizations(
+    results: list["ModelResult"],
+    output_dir: pathlib.Path,
+    *,
+    summary_visualizations: list[tuple[str, object]] | None = None,
+) -> None:
     """Persist Altair chart specs as JSON for notebook or Vega usage."""
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    for title, chart in summary_visualizations or []:
+        safe_name = title.lower().replace(" ", "-")
+        target = output_dir / f"summary-{safe_name}.json"
+        if hasattr(chart, "to_json"):
+            target.write_text(chart.to_json(), encoding="utf-8")
+        elif hasattr(chart, "to_dict"):
+            import json
+
+            target.write_text(json.dumps(chart.to_dict()), encoding="utf-8")
+        else:
+            target.write_text(str(chart), encoding="utf-8")
+
     for result in results:
         for title, chart in result.visualizations:
             safe_name = title.lower().replace(" ", "-")
