@@ -7,6 +7,7 @@ the workshop remains runnable.
 from __future__ import annotations
 
 import json
+import pathlib
 from dataclasses import dataclass
 from typing import Any, Iterable, List
 
@@ -123,3 +124,21 @@ def xgboost_additive_chart(history: List[dict[str, float]]):
         .encode(x="round:Q", y="step:Q", tooltip=["round", "step", "trees"])
         .properties(title="How each boosting round shifts the model")
     )
+
+
+def save_visualizations(results: list, output_dir: pathlib.Path) -> None:
+    """Persist Altair chart specs as JSON for notebook or Vega usage."""
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for result in results:
+        for title, chart in result.visualizations:
+            safe_name = title.lower().replace(" ", "-")
+            target = output_dir / f"{result.name.lower().replace(' ', '-')}-{safe_name}.json"
+            if hasattr(chart, "to_json"):
+                target.write_text(chart.to_json(), encoding="utf-8")
+            elif hasattr(chart, "to_dict"):
+                import json
+
+                target.write_text(json.dumps(chart.to_dict()), encoding="utf-8")
+            else:
+                target.write_text(str(chart), encoding="utf-8")

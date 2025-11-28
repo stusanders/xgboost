@@ -51,7 +51,8 @@ python -m titanic_workshop.main --model forest --forest-trees 8
 python -m titanic_workshop.main --model xgboost
 ```
 
-Or pass specific hyperparameters non-interactively:
+Or pass specific hyperparameters non-interactively and write visualizations to
+the default ``output/visualizations`` folder:
 
 ```bash
 python -m titanic_workshop.main \
@@ -59,11 +60,13 @@ python -m titanic_workshop.main \
   --max-depth 4 --min-leaf 2 \
   --forest-trees 15 \
   --xgboost-rounds 25 --xgboost-lr 0.2 \
-  --visualize --visualize-dir visuals
+  --visualize
 ```
 
 The script downloads the dataset to `input/titanic.csv` if it is not already
-present. Use `--data-dir` to change the location.
+present. Use `--data-dir` to change the location. When `--visualize` is
+enabled, chart specifications are written to `output/visualizations` by default
+so you can load them into notebooks or Vega editors later.
 
 ## Testing
 

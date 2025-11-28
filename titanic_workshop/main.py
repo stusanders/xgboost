@@ -13,8 +13,10 @@ from typing import List
 from .data import ensure_data, load_dataset, split_features_labels
 from .models import ModelResult, train_decision_tree, train_random_forest, train_xgboost_classifier
 from .preprocess import encode_rows, train_test_split
+from .visualize import save_visualizations
 
 MODEL_CHOICES = ["tree", "forest", "xgboost", "all"]
+DEFAULT_VISUALIZE_DIR = pathlib.Path("output/visualizations")
 
 
 def run_experiments(
@@ -27,7 +29,7 @@ def run_experiments(
     xgb_rounds: int = 10,
     xgb_lr: float = 0.3,
     visualize: bool = False,
-    visualize_dir: pathlib.Path | None = None,
+    visualize_dir: pathlib.Path | None = DEFAULT_VISUALIZE_DIR,
 ) -> List[ModelResult]:
     """Execute the requested models and collect their metrics.
 
@@ -40,7 +42,10 @@ def run_experiments(
         xgb_rounds: Number of boosting rounds for the stump ensemble.
         xgb_lr: Learning rate applied to each stump weight.
         visualize: Whether to persist Altair chart specs alongside metrics.
-        visualize_dir: Directory for visualization JSON output.
+        visualize_dir: Directory for visualization JSON output. Defaults to
+            ``output/visualizations``; if explicitly set to ``None`` the
+            location falls back to a ``visualizations`` subfolder alongside the
+            data directory.
 
     Returns:
         List of ModelResult objects ordered by execution.
@@ -51,9 +56,7 @@ def run_experiments(
     X_encoded, headers = encode_rows(X_raw)
     X_train, X_test, y_train, y_test = train_test_split(X_encoded, y)
 
-    output_dir = visualize_dir or data_dir
-    if visualize:
-        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    output_dir = visualize_dir or pathlib.Path(data_dir) / "visualizations"
 
     results = []
     if "tree" in models_to_run:
@@ -95,7 +98,7 @@ def run_experiments(
         )
 
     if visualize:
-        _save_visualizations(results, output_dir)
+        save_visualizations(results, pathlib.Path(output_dir))
     return results
 
 
@@ -174,8 +177,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--visualize-dir",
         type=pathlib.Path,
-        default=None,
-        help="Destination directory for visualization JSON (defaults to data dir).",
+        default=DEFAULT_VISUALIZE_DIR,
+        help="Destination directory for visualization JSON (defaults to output/visualizations).",
     )
     return parser.parse_args()
 
