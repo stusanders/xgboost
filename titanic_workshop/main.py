@@ -31,24 +31,23 @@ def run_experiments(
     visualize: bool = False,
     visualize_dir: pathlib.Path | None = DEFAULT_VISUALIZE_DIR,
 ) -> List[ModelResult]:
-    """Execute the requested models and collect their metrics.
+    """Train selected Titanic models and optionally export their charts.
 
     Args:
-        models_to_run: Subset of model identifiers to train.
-        data_dir: Directory where the Titanic dataset resides.
-        max_depth: Maximum depth for individual trees.
-        min_leaf_size: Minimum sample size before creating a leaf.
-        forest_trees: Number of trees to include in the random forest.
-        xgb_rounds: Number of boosting rounds for the stump ensemble.
-        xgb_lr: Learning rate applied to each stump weight.
-        visualize: Whether to persist Altair chart specs alongside metrics.
-        visualize_dir: Directory for visualization JSON output. Defaults to
-            ``output/visualizations``; if explicitly set to ``None`` the
-            location falls back to a ``visualizations`` subfolder alongside the
-            data directory.
+        models_to_run: Ordered identifiers for the models to evaluate.
+        data_dir: Folder containing or receiving the Titanic CSV.
+        max_depth: Maximum depth permitted for each decision tree.
+        min_leaf_size: Minimum number of records per terminal leaf.
+        forest_trees: Quantity of trees to build in the random forest.
+        xgb_rounds: Number of boosting iterations for the stump ensemble.
+        xgb_lr: Learning rate applied to each boosting step.
+        visualize: Whether to write Altair chart specifications to disk.
+        visualize_dir: Target directory for visualization JSON files. Defaults
+            to ``output/visualizations``; if ``None`` a ``visualizations``
+            folder is created next to the data directory.
 
     Returns:
-        List of ModelResult objects ordered by execution.
+        Ordered list of model results corresponding to the requested runs.
     """
     data_path = ensure_data(data_dir)
     df = load_dataset(data_path)
@@ -107,7 +106,11 @@ def run_experiments(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for the workshop CLI."""
+    """Build and parse CLI arguments for training the workshop models.
+
+    Returns:
+        Parsed CLI arguments with defaults applied.
+    """
     parser = argparse.ArgumentParser(description="Titanic modelling workshop harness")
     parser.add_argument(
         "--model",
@@ -171,7 +174,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def _prompt_value(prompt: str, caster, default):
-    """Request a typed value from stdin, falling back to a default."""
+    """Request a typed value from stdin, coercing with the provided caster.
+
+    Args:
+        prompt: User-facing prompt to show before reading input.
+        caster: Callable used to cast the raw string into the target type.
+        default: Value to return when input is empty or invalid.
+
+    Returns:
+        The parsed value or the supplied default when parsing fails.
+    """
 
     raw = input(f"{prompt} [{default}]: ").strip()
     if not raw:
@@ -184,7 +196,15 @@ def _prompt_value(prompt: str, caster, default):
 
 
 def _interactive_config(args: argparse.Namespace) -> tuple[list[str], dict]:
-    """Interactively gather model choices and hyperparameters."""
+    """Gather model selections and hyperparameters interactively.
+
+    Args:
+        args: Parsed CLI defaults to use as fallbacks for prompts.
+
+    Returns:
+        A tuple containing the chosen model identifiers and a configuration
+        mapping of hyperparameters and visualization options.
+    """
 
     model_input = input(
         "Models to run (tree,forest,xgboost,all) [all]: "
@@ -210,7 +230,7 @@ def _interactive_config(args: argparse.Namespace) -> tuple[list[str], dict]:
 
 
 def main() -> None:
-    """CLI entry point for training and comparing Titanic models."""
+    """Run the CLI workflow for training and comparing Titanic models."""
     args = parse_args()
     if args.interactive:
         models, hyperparams = _interactive_config(args)
