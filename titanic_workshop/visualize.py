@@ -105,13 +105,13 @@ def tree_structure_chart(tree, feature_names: List[str]):
 
     walk(tree, None, 0, counter())
 
-    node_chart = alt.Chart(nodes).mark_circle(size=150).encode(
+    node_chart = alt.Chart({"values": nodes}).mark_circle(size=150).encode(
         x="depth:Q", y="y:Q", tooltip=["label:N"], color="depth:Q"
     )
-    label_chart = alt.Chart(nodes).mark_text(align="left", dx=6).encode(
+    label_chart = alt.Chart({"values": nodes}).mark_text(align="left", dx=6).encode(
         x="depth:Q", y="y:Q", text="label:N"
     )
-    edge_chart = alt.Chart(edges).mark_line(color="#999").encode(
+    edge_chart = alt.Chart({"values": edges}).mark_line(color="#999").encode(
         x="x:Q", x2="x2:Q", y="y:Q", y2="y2:Q"
     )
     return edge_chart + node_chart + label_chart
@@ -121,17 +121,19 @@ def forest_vote_chart(votes: List[float]):
     """Show how tree votes spread across the test set."""
 
     data = [{"index": idx, "vote": vote} for idx, vote in enumerate(votes)]
-    return alt.Chart(data).mark_bar().encode(x="index:Q", y="vote:Q", tooltip=["vote:Q"])
+    return alt.Chart({"values": data}).mark_bar().encode(
+        x="index:Q", y="vote:Q", tooltip=["vote:Q"]
+    )
 
 
 def xgboost_additive_chart(history: List[dict[str, float]]):
     """Visualize additive steps of boosting rounds."""
 
     return (
-        alt.Chart(history)
-        .mark_line(point=True)
-        .encode(
-            x="round:Q",
+        alt.Chart({"values": history})
+            .mark_line(point=True)
+            .encode(
+                x="round:Q",
             y="step:Q",
             tooltip=["round:Q", "step:Q", "trees:Q"],
         )
@@ -156,10 +158,10 @@ def metrics_overview_chart(results: list["ModelResult"]):
             )
 
     return (
-        alt.Chart(records)
-        .mark_bar()
-        .encode(
-            x="metric:N",
+        alt.Chart({"values": records})
+            .mark_bar()
+            .encode(
+                x="metric:N",
             y="value:Q",
             color="model:N",
             column="model:N",
