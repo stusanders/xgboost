@@ -218,7 +218,16 @@ def train_decision_tree(
     metrics = evaluate_predictions(y_test, scores)
     visuals = []
     if feature_names:
-        visuals.append(("Decision tree structure", tree_structure_chart(tree, feature_names)))
+        visuals.append((
+            "Decision tree structure",
+            tree_structure_chart(
+                tree,
+                feature_names,
+                X_train=X_train,
+                y_train=y_train,
+                title="Decision Tree: Demographic Survival Analysis"
+            )
+        ))
     return ModelResult(
         "Decision Tree",
         metrics,
