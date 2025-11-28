@@ -63,6 +63,14 @@ python -m titanic_workshop.main \
   --visualize
 ```
 
+Visualization specs are written as Vega/Altair-compatible JSON. After a run
+with `--visualize`, open them with the free
+[Vega editor](https://vega.github.io/editor/) by importing the JSON files from
+`output/visualizations`, or load them into a notebook and render with
+`altair.Chart.from_dict(json.load(open("output/visualizations/tree.json")))`.
+The files are self-contained, so no network access is required to explore the
+charts.
+
 The script downloads the dataset to `input/titanic.csv` if it is not already
 present. Use `--data-dir` to change the location. When `--visualize` is
 enabled, chart specifications are written to `output/visualizations` by default
