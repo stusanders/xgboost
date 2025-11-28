@@ -30,6 +30,10 @@ except Exception:  # pragma: no cover - offline fallback
             self.spec = {"mark": {"type": "line", **kwargs}}
             return self
 
+        def mark_rule(self, **kwargs):
+            self.spec = {"mark": {"type": "rule", **kwargs}}
+            return self
+
         def mark_text(self, **kwargs):
             self.spec = {"mark": {"type": "text", **kwargs}}
             return self
@@ -169,6 +173,60 @@ def metrics_overview_chart(results: list["ModelResult"]):
         )
         .properties(title="Evaluation metrics across hyperparameter choices")
     )
+
+
+def passenger_survival_scatter(passengers: list[dict[str, str]]):
+    """Show each passenger colored by survival with a 95% split marker."""
+
+    ordered = sorted(
+        enumerate(passengers), key=lambda entry: int(entry[1].get("Survived", "0")), reverse=True
+    )
+
+    data: list[dict[str, float | int]] = []
+    for idx, (_, row) in enumerate(ordered):
+        survived = int(row.get("Survived", 0))
+        age_raw = row.get("Age", "")
+        try:
+            age = float(age_raw) if age_raw not in (None, "") else None
+        except ValueError:
+            age = None
+        data.append(
+            {
+                "index": idx,
+                "survived": survived,
+                "age": age,
+                "pclass": row.get("Pclass", ""),
+                "fare": row.get("Fare", ""),
+            }
+        )
+
+    survivors = sum(entry["survived"] for entry in data)
+    split_index = int(survivors * 0.95) - 1 if survivors else None
+    split_chart = None
+    if split_index is not None and split_index >= 0:
+        split_chart = (
+            alt.Chart({"values": [{"position": split_index + 0.5}]})
+            .mark_rule(color="#1f77b4", strokeDash=[6, 4])
+            .encode(x="position:Q")
+        )
+
+    scatter = (
+        alt.Chart({"values": data})
+        .mark_circle(size=70, opacity=0.8)
+        .encode(
+            x="index:Q",
+            y=alt.Y("age:Q", title="Age (years)"),
+            color=alt.Color(
+                "survived:N",
+                scale={"domain": [1, 0], "range": ["#2ca02c", "#d62728"]},
+                legend=alt.Legend(title="Survived"),
+            ),
+            tooltip=["index:Q", "age:Q", "fare:N", "pclass:N", "survived:N"],
+        )
+        .properties(title="Passenger survival distribution")
+    )
+
+    return scatter if split_chart is None else scatter + split_chart
 
 
 def save_visualizations(

@@ -13,7 +13,7 @@ from typing import List
 from .data import ensure_data, load_dataset, split_features_labels
 from .models import ModelResult, train_decision_tree, train_random_forest, train_xgboost_classifier
 from .preprocess import encode_rows, train_test_split
-from .visualize import metrics_overview_chart, save_visualizations
+from .visualize import metrics_overview_chart, passenger_survival_scatter, save_visualizations
 
 MODEL_CHOICES = ["tree", "forest", "xgboost", "all"]
 DEFAULT_VISUALIZE_DIR = pathlib.Path("output/visualizations")
@@ -98,7 +98,10 @@ def run_experiments(
         )
 
     if visualize:
-        summary_visuals = [("Model metrics", metrics_overview_chart(results))]
+        summary_visuals = [
+            ("Passenger survival", passenger_survival_scatter(df)),
+            ("Model metrics", metrics_overview_chart(results)),
+        ]
         save_visualizations(results, pathlib.Path(output_dir), summary_visualizations=summary_visuals)
     return results
 
