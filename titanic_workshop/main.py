@@ -13,7 +13,7 @@ from typing import List
 from .data import ensure_data, load_dataset, split_features_labels
 from .models import ModelResult, train_decision_tree, train_random_forest, train_xgboost_classifier
 from .preprocess import encode_rows, train_test_split
-from .visualize import save_visualizations
+from .visualize import metrics_overview_chart, save_visualizations
 
 MODEL_CHOICES = ["tree", "forest", "xgboost", "all"]
 DEFAULT_VISUALIZE_DIR = pathlib.Path("output/visualizations")
@@ -98,25 +98,9 @@ def run_experiments(
         )
 
     if visualize:
-        save_visualizations(results, pathlib.Path(output_dir))
+        summary_visuals = [("Model metrics", metrics_overview_chart(results))]
+        save_visualizations(results, pathlib.Path(output_dir), summary_visualizations=summary_visuals)
     return results
-
-
-def _save_visualizations(results: list[ModelResult], output_dir: pathlib.Path) -> None:
-    """Persist Altair chart specs as JSON for notebook or Vega usage."""
-
-    for result in results:
-        for title, chart in result.visualizations:
-            safe_name = title.lower().replace(" ", "-")
-            target = pathlib.Path(output_dir) / f"{result.name.lower().replace(' ', '-')}-{safe_name}.json"
-            if hasattr(chart, "to_json"):
-                target.write_text(chart.to_json(), encoding="utf-8")
-            elif hasattr(chart, "to_dict"):
-                import json
-
-                target.write_text(json.dumps(chart.to_dict()), encoding="utf-8")
-            else:
-                target.write_text(str(chart), encoding="utf-8")
 
 
 def parse_args() -> argparse.Namespace:
@@ -243,7 +227,9 @@ def main() -> None:
     print("\nModel performance\n-----------------")
     for result in results:
         print(
-            f"{result.name:16} accuracy={result.accuracy:.3f} roc_auc={result.roc_auc:.3f}"
+            f"{result.name:16} accuracy={result.accuracy:.3f} "
+            f"roc_auc={result.roc_auc:.3f} precision={result.precision:.3f} "
+            f"recall={result.recall:.3f} f1={result.f1:.3f}"
         )
 
 

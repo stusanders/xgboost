@@ -11,13 +11,53 @@ from .visualize import forest_vote_chart, tree_structure_chart, xgboost_additive
 
 
 @dataclass
+class EvaluationMetrics:
+    """Bundle of common classification evaluation metrics."""
+
+    accuracy: float
+    roc_auc: float
+    precision: float
+    recall: float
+    f1: float
+
+
+@dataclass
 class ModelResult:
     """Container for reporting model evaluation metrics and visuals."""
 
     name: str
-    accuracy: float
-    roc_auc: float
+    metrics: EvaluationMetrics
+    hyperparameters: dict[str, object]
     visualizations: list[tuple[str, object]] = field(default_factory=list)
+
+    @property
+    def accuracy(self) -> float:
+        return self.metrics.accuracy
+
+    @property
+    def roc_auc(self) -> float:
+        return self.metrics.roc_auc
+
+    @property
+    def precision(self) -> float:
+        return self.metrics.precision
+
+    @property
+    def recall(self) -> float:
+        return self.metrics.recall
+
+    @property
+    def f1(self) -> float:
+        return self.metrics.f1
+
+    def metric_mapping(self) -> dict[str, float]:
+        return {
+            "accuracy": self.metrics.accuracy,
+            "roc_auc": self.metrics.roc_auc,
+            "precision": self.metrics.precision,
+            "recall": self.metrics.recall,
+            "f1": self.metrics.f1,
+        }
 
 
 def _sigmoid(x: float) -> float:
@@ -41,12 +81,19 @@ def _roc_auc(labels: List[int], scores: List[float]) -> float:
     return u / (pos * neg)
 
 
-def evaluate_predictions(y_true: List[int], y_proba: List[float]) -> Tuple[float, float]:
+def evaluate_predictions(y_true: List[int], y_proba: List[float]) -> EvaluationMetrics:
     preds = [1 if p >= 0.5 else 0 for p in y_proba]
     correct = sum(int(p == t) for p, t in zip(preds, y_true))
+    tp = sum(1 for pred, true in zip(preds, y_true) if pred == 1 and true == 1)
+    fp = sum(1 for pred, true in zip(preds, y_true) if pred == 1 and true == 0)
+    fn = sum(1 for pred, true in zip(preds, y_true) if pred == 0 and true == 1)
+
     accuracy = correct / len(y_true) if y_true else 0.0
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
     roc_auc = _roc_auc(y_true, y_proba)
-    return accuracy, roc_auc
+    return EvaluationMetrics(accuracy, roc_auc, precision, recall, f1)
 
 
 @dataclass
@@ -168,11 +215,16 @@ def train_decision_tree(
     )
 
     scores: list[float] = [tree.predict(row) for row in X_test]
-    acc, roc = evaluate_predictions(y_test, scores)
+    metrics = evaluate_predictions(y_test, scores)
     visuals = []
     if feature_names:
         visuals.append(("Decision tree structure", tree_structure_chart(tree, feature_names)))
-    return ModelResult("Decision Tree", acc, roc, visuals)
+    return ModelResult(
+        "Decision Tree",
+        metrics,
+        {"max_depth": max_depth, "min_leaf_size": min_size},
+        visuals,
+    )
 
 
 def _bootstrap_sample(X: List[NumericRow], y: List[int]) -> tuple[list[NumericRow], list[int]]:
@@ -217,12 +269,17 @@ def train_random_forest(
         scores.append(sum(preds) / len(preds))
         tree_votes.append({"average_vote": scores[-1]})
 
-    acc, roc = evaluate_predictions(y_test, scores)
+    metrics = evaluate_predictions(y_test, scores)
 
     visuals = []
     if feature_names:
         visuals.append(("Forest vote distribution", forest_vote_chart(scores)))
-    return ModelResult("Random Forest", acc, roc, visuals)
+    return ModelResult(
+        "Random Forest",
+        metrics,
+        {"trees": n_trees, "max_depth": max_depth, "min_leaf_size": min_size},
+        visuals,
+    )
 
 
 def _best_stump(X: List[NumericRow], residuals: List[float]) -> Tuple[int, float]:
@@ -283,8 +340,13 @@ def train_xgboost_classifier(
             score += weight if features[feat_idx] >= threshold else -weight
         scores.append(_sigmoid(score))
 
-    acc, roc = evaluate_predictions(y_test, scores)
+    metrics = evaluate_predictions(y_test, scores)
     visuals = []
     if feature_names:
         visuals.append(("Boosting contributions", xgboost_additive_chart(additive_history)))
-    return ModelResult("XGBoost-lite", acc, roc, visuals)
+    return ModelResult(
+        "XGBoost-lite",
+        metrics,
+        {"rounds": rounds, "learning_rate": learning_rate},
+        visuals,
+    )

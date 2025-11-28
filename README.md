@@ -68,6 +68,10 @@ present. Use `--data-dir` to change the location. When `--visualize` is
 enabled, chart specifications are written to `output/visualizations` by default
 so you can load them into notebooks or Vega editors later.
 
+When `--visualize` is enabled, Altair chart JSON files (including a model-wide
+metric comparison view) are always written under `output/visualizations` unless
+you override the folder with `--visualize-dir`.
+
 ## Testing
 
 Run a quick smoke test that executes all models end-to-end using a temporary
@@ -91,6 +95,48 @@ python -m unittest
 Interactive runs will ask for these values and show sensible defaults. You can
 always hit Enter to accept a default, or supply flags directly to script runs
 for repeatable experiments.
+
+## Hyperparameter guidance
+
+The CLI exposes a handful of knobs for each model; typical offline-friendly
+ranges and their effects are:
+
+- **Decision tree**
+  - `--max-depth` (usual range: 2–6): deeper trees memorize quirks in the
+    Titanic split and can overfit; shallower trees stay interpretable but may
+    miss interactions.
+  - `--min-leaf` (usual range: 1–5): larger leaves smooth probabilities and
+    protect against noisy splits at the expense of some nuance.
+- **Random forest**
+  - `--forest-trees` (usual range: 5–50): more trees reduce variance and usually
+    improve ROC-AUC until returns diminish; too few trees leave high variance.
+  - `--max-depth`/`--min-leaf`: the same controls as the single tree, applied to
+    each bootstrapped tree; shallower, pruned trees paired with many trees tend
+    to generalize well.
+- **XGBoost-lite**
+  - `--xgboost-rounds` (usual range: 10–50): additional rounds let the additive
+    model correct residuals; excessive rounds with a high learning rate can
+    overfit.
+  - `--xgboost-lr` (usual range: 0.05–0.5): lower rates take more rounds but can
+    reach smoother optima; higher rates move faster but risk oscillations.
+
+Experimenting inside these ranges will influence the evaluation metrics below;
+the visualization JSON includes tooltips with the hyperparameters used for each
+run so you can see the trade-offs directly.
+
+## Evaluation and visualization
+
+Each model reports accuracy, ROC-AUC, precision, recall, and F1 so you can
+balance calibration, ranking quality, and class-specific performance. Lower
+precision with high recall often means the model captures more survivors but at
+the cost of false positives; high precision with low recall signals conservative
+predictions that miss positives. ROC-AUC close to 0.5 indicates near-random
+ranking, while scores above ~0.8 reflect meaningful separation on this dataset.
+
+When `--visualize` is used, the workshop saves per-model visualizations plus an
+aggregate metric comparison chart to `output/visualizations`, letting you open
+the JSON in notebooks or the [Vega editor](https://vega.github.io/editor/) to
+see how different hyperparameter choices shift the metrics.
 
 ## Repository layout
 

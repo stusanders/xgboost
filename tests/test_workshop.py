@@ -32,6 +32,12 @@ class RunExperimentsTest(unittest.TestCase):
                     self.assertLessEqual(result.accuracy, 1.0)
                     self.assertGreaterEqual(result.roc_auc, 0.0)
                     self.assertLessEqual(result.roc_auc, 1.0)
+                    self.assertGreaterEqual(result.precision, 0.0)
+                    self.assertLessEqual(result.precision, 1.0)
+                    self.assertGreaterEqual(result.recall, 0.0)
+                    self.assertLessEqual(result.recall, 1.0)
+                    self.assertGreaterEqual(result.f1, 0.0)
+                    self.assertLessEqual(result.f1, 1.0)
                     # Visualizations should be present when requested
                     self.assertTrue(result.visualizations)
             self.assertTrue(visualize_dir.exists())
